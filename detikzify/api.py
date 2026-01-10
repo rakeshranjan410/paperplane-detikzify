@@ -8,7 +8,7 @@ import logging
 
 from .model import load
 from .infer.generate import DetikzifyPipeline
-from torch import float16
+
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)
@@ -31,7 +31,7 @@ async def lifespan(app: FastAPI):
             model_name_or_path=MODEL_NAME,
             device_map=None,
             low_cpu_mem_usage=True,
-            torch_dtype=float16,
+            torch_dtype=torch.bfloat16,
         )
         
         if torch.cuda.is_available():

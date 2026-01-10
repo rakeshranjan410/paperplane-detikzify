@@ -128,7 +128,7 @@ class DetikzifyGenerator:
                 
                 inputs = self.processor(images=self.image, text=self.text, return_tensors="pt")
                 # We only need pixel_values from this if we are generation
-                pixel_values = inputs.pixel_values.to(self.model.device, dtype=self.model.dtype)
+                pixel_values = inputs.pixel_values.to(device=self.model.device, dtype=self.model.dtype)
                 
                 # Check for EOS
                 if input_ids[-1] == self.tokenizer.eos_token_id:
