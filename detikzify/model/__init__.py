@@ -57,18 +57,32 @@ def load(model_name_or_path, modality_projector=None, is_v1=False, **kwargs):
         # DeTikZify uses 420x420 images
         image_processor.size = {"height": 420, "width": 420}
         
-        # Try AutoTokenizer first, if it fails fallback to LlamaTokenizer (slow)
-        # This handles cases where fast tokenizer conversion fails (Tiktoken/SentencePiece issues)
+        # Try AutoTokenizer first, if it fails fallback to DeepSeek tokenizer (compatible)
+        # This handles cases where the model repo (nllg/detikzify-ds-1.3b) is missing tokenizer files
         try:
             tokenizer = AutoTokenizer.from_pretrained(model_name_or_path, use_fast=True)
-        except ValueError:
-             from transformers import LlamaTokenizer
-             tokenizer = LlamaTokenizer.from_pretrained(model_name_or_path)
+        except (ValueError, TypeError, OSError):
+            tokenizer = AutoTokenizer.from_pretrained("deepseek-ai/deepseek-coder-1.3b-instruct", use_fast=True)
+
+        if "<|reserved_special_token_2|>" not in tokenizer.get_vocab():
+            tokenizer.add_tokens(["<|reserved_special_token_2|>"], special_tokens=True)
 
         processor = DetikzifyProcessor(image_processor=image_processor, tokenizer=tokenizer)
     
     # Force float16 for memory efficiency on inference
-    model = AutoModelForVision2Seq.from_pretrained(model_name_or_path, **kwargs)
+    config = AutoConfig.from_pretrained(model_name_or_path, trust_remote_code=True)
+    if getattr(config, "pad_token_id", None) is not None and config.pad_token_id >= config.vocab_size:
+        print(f"Warning: pad_token_id {config.pad_token_id} is out of bounds for vocab_size {config.vocab_size}. Resetting to 0.")
+        config.pad_token_id = 0
+
+    if hasattr(config, "text_config"):
+        tc = config.text_config
+        if getattr(tc, "pad_token_id", None) is not None and getattr(tc, "vocab_size", None) is not None:
+             if tc.pad_token_id >= tc.vocab_size:
+                  print(f"Warning: text_config.pad_token_id {tc.pad_token_id} is out of bounds for vocab_size {tc.vocab_size}. Resetting to 0.")
+                  tc.pad_token_id = 0
+
+    model = AutoModelForVision2Seq.from_pretrained(model_name_or_path, config=config, **kwargs)
 
     if modality_projector is not None:
         if is_remote_url(modality_projector):
