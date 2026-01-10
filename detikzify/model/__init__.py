@@ -57,12 +57,9 @@ def load(model_name_or_path, modality_projector=None, is_v1=False, **kwargs):
         # DeTikZify uses 420x420 images
         image_processor.size = {"height": 420, "width": 420}
         
-        # Try AutoTokenizer first, if it fails fallback to DeepSeek tokenizer (compatible)
-        # This handles cases where the model repo (nllg/detikzify-ds-1.3b) is missing tokenizer files
-        try:
-            tokenizer = AutoTokenizer.from_pretrained(model_name_or_path, use_fast=True)
-        except (ValueError, TypeError, OSError):
-            tokenizer = AutoTokenizer.from_pretrained("deepseek-ai/deepseek-coder-1.3b-instruct", use_fast=True)
+        # Try AutoTokenizer first
+        # For v2.5-8b (Llama3 based), AutoTokenizer should work correctly w/ sentencepiece/tiktoken installed
+        tokenizer = AutoTokenizer.from_pretrained(model_name_or_path, use_fast=True)
 
         if "<|reserved_special_token_2|>" not in tokenizer.get_vocab():
             tokenizer.add_tokens(["<|reserved_special_token_2|>"], special_tokens=True)

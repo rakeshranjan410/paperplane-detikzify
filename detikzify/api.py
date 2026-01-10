@@ -16,7 +16,7 @@ logger = logging.getLogger("detikzify-api")
 
 # Global variables
 pipeline = None
-MODEL_NAME = "nllg/detikzify-ds-1.3b"
+MODEL_NAME = "nllg/detikzify-v2.5-8b"
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
