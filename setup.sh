@@ -46,6 +46,8 @@ echo "Installing Python dependencies..."
 # Activate venv for installation
 source venv/bin/activate
 pip install --upgrade pip
+# Explicitly install PyTorch with CUDA 12.1 support first
+pip install torch torchvision --index-url https://download.pytorch.org/whl/cu121
 pip install -e .
 
 echo "Setup complete! You can now run:"
