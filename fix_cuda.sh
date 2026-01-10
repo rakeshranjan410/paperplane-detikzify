@@ -10,8 +10,12 @@ if ! command -v nvidia-smi &> /dev/null; then
         echo "Detected Amazon Linux. Attempting robust installation via runfile..."
         
         # 0. Clean up potential conflicts from previous attempts
-        echo "Removing conflicting packages..."
-        sudo dnf remove -y nvidia-* cuda-*
+        echo "Removing conflicting packages and configurations..."
+        sudo dnf remove -y "*nvidia*" "*cuda*"
+        sudo rm -rf /usr/local/cuda*
+        sudo rm -f /etc/modprobe.d/nvidia*
+        # Try to unload modules if they are loaded
+        sudo rmmod nvidia_drm nvidia_modeset nvidia_uvm nvidia 2>/dev/null || true
         
         # 1. Install build dependencies
         sudo dnf groupinstall -y "Development Tools"
