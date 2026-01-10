@@ -85,14 +85,15 @@ async def generate_tikz(file: UploadFile = File(...)):
         image = Image.open(io.BytesIO(contents)).convert("RGB")
         logger.info(f"Image processed. Size: {image.size}. Starting inference...")
         
-        # Run inference using MCTS with 3 expansions for quality
-        # Balance between speed and quality
+        # Run inference using time-based MCTS (per whitepaper recommendation)
+        # Let MCTS explore as much as possible within the time budget.
+        # More time = more simulations = better quality.
         
-        logger.info("Starting MCTS simulation (3 expansions)...")
+        logger.info("Starting MCTS simulation (timeout=180s)...")
         best_code = None
         best_score = float("-inf")
         
-        for score, tikz_doc in pipeline.simulate(image=image, expansions=3, timeout=180):
+        for score, tikz_doc in pipeline.simulate(image=image, expansions=None, timeout=180):
             logger.info(f"Generated candidate with score: {score}")
             if score > best_score:
                 best_score = score
