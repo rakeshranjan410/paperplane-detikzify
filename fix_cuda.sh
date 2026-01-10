@@ -7,10 +7,24 @@ echo "Fixing PyTorch CUDA installation..."
 if ! command -v nvidia-smi &> /dev/null; then
     echo "nvidia-smi not found! NVIDIA Drivers are likely missing."
     if [ -f /etc/amazon-linux-release ]; then
-        echo "Detected Amazon Linux. Attempting to install drivers..."
-        sudo dnf install -y gcc kernel-devel-$(uname -r)
-        # AL2023 usually needs this for GRID/Tesla drivers
-        sudo dnf install -y kernel-modules-extra-$(uname -r) || true
+        echo "Detected Amazon Linux. Attempting to install drivers from official repos..."
+        
+        # 1. Update and install kernel headers
+        sudo dnf upgrade -y
+        sudo dnf install -y kernel-devel-$(uname -r) kernel-modules-extra-$(uname -r)
+        
+        # 2. Add NVIDIA CUDA repo
+        sudo dnf config-manager --add-repo https://developer.download.nvidia.com/compute/cuda/repos/amzn2023/x86_64/cuda-amzn2023.repo
+        
+        # 3. Install drivers
+        sudo dnf clean all
+        sudo dnf install -y nvidia-driver nvidia-settings
+        
+        echo "--------------------------------------------------------"
+        echo "DRIVERS INSTALLED. SYSTEM REBOOT REQUIRED."
+        echo "Please run: sudo reboot"
+        echo "Then wait 60 seconds and reconnect."
+        echo "--------------------------------------------------------"
     else
         echo "Please install NVIDIA drivers for your OS."
     fi
