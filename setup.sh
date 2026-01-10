@@ -13,17 +13,21 @@ echo "Installing system dependencies..."
 if command_exists apt-get; then
     # Ubuntu/Debian
     sudo apt-get update
-    sudo apt-get install -y python3.11 python3.11-venv python3.11-dev git poppler-utils build-essential
+    sudo apt-get install -y python3.11 python3.11-venv python3.11-dev git poppler-utils build-essential texlive-full ghostscript
 elif command_exists yum; then
     # Amazon Linux / CentOS / RHEL
     sudo yum update -y
     # Amazon Linux 2023 supports python3.11 natively
     sudo yum install -y python3.11 python3.11-devel git poppler-utils gcc gcc-c++
+    # TeX Live for TikZ compilation (required for MCTS)
+    sudo yum install -y texlive texlive-scheme-full ghostscript || sudo yum install -y texlive texlive-scheme-medium ghostscript
 elif command_exists dnf; then
     # Fedora / Newer RHEL
     sudo dnf install -y python3.11 python3.11-devel git poppler-utils gcc gcc-c++
+    # TeX Live for TikZ compilation (required for MCTS)
+    sudo dnf install -y texlive texlive-scheme-full ghostscript || sudo dnf install -y texlive texlive-scheme-medium ghostscript
 else
-    echo "Warning: package manager not found. Please ensure 'python3.11', 'git', and 'poppler-utils' are installed."
+    echo "Warning: package manager not found. Please ensure 'python3.11', 'git', 'poppler-utils', and 'texlive' are installed."
 fi
 
 # 2. Create Virtual Environment
