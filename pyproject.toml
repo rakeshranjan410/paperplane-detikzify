@@ -1,0 +1,58 @@
+[build-system]
+requires = ["setuptools>=61", "setuptools_scm[toml]>=6.2"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "detikzify"
+readme = "README.md"
+license = {text = "Apache-2.0 License"}
+dependencies = [
+  "torch~=2.7.1",
+  "torchvision~=0.22.1",
+  "transformers[accelerate,tokenizers]~=4.52.4",
+  "Pillow~=10.4.0",
+  "requests~=2.32.3",
+  "numpy~=2.1.1",
+  # pdf
+  "PyMuPDF~=1.24.10",
+  "pdf2image~=1.17.0",
+  "pdfCropMargins~=2.1.4",
+  # api
+  "fastapi~=0.112.4",
+  "uvicorn[standard]~=0.30.0",
+  "pydantic~=2.10.6",
+  "python-multipart",
+]
+requires-python = "~=3.11"
+dynamic = ["version"]
+
+[project.optional-dependencies]
+evaluate = [
+  "Pygments~=2.18.0",
+  "crystalbleu~=0.1.0",
+  "nltk~=3.9.1",
+  "sacremoses~=0.1.1",
+  "dreamsim~=0.2.1",
+  "protobuf~=5.28.3",
+  "sentencepiece~=0.2.0"
+]
+examples = [
+  "detikzify[evaluate]",
+  "diffusers~=0.30.2"
+]
+legacy = [
+  "timm~=1.0.11"
+]
+deepspeed = [
+  "deepspeed~=0.17.1"
+]
+
+[project.urls]
+repository = "https://github.com/potamides/DeTikZify"
+
+[tool.setuptools_scm]
+write_to = "detikzify/_version.py"
+parentdir_prefix_version = "detikzify-"
+
+[tool.setuptools.packages.find]
+include = ["detikzify*"]
