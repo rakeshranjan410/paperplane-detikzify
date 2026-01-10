@@ -25,6 +25,7 @@ dependencies = [
   "protobuf~=5.28.3",
   "tiktoken",
   "sentencepiece",
+  "httpx>=0.25.0",
 ]
 requires-python = "~=3.11"
 dynamic = ["version"]
