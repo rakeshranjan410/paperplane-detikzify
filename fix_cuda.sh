@@ -9,6 +9,10 @@ if ! command -v nvidia-smi &> /dev/null; then
     if [ -f /etc/amazon-linux-release ]; then
         echo "Detected Amazon Linux. Attempting robust installation via runfile..."
         
+        # 0. Clean up potential conflicts from previous attempts
+        echo "Removing conflicting packages..."
+        sudo dnf remove -y nvidia-* cuda-*
+        
         # 1. Install build dependencies
         sudo dnf groupinstall -y "Development Tools"
         sudo dnf install -y kernel-devel-$(uname -r) kernel-modules-extra-$(uname -r)
