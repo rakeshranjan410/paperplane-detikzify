@@ -46,19 +46,28 @@ def load(model_name_or_path, modality_projector=None, is_v1=False, **kwargs):
         )
 
     register()
+    register()
     try:
         processor = AutoProcessor.from_pretrained(model_name_or_path)
     except OSError:
         # Fallback for models missing preprocessor_config.json (like nllg/detikzify-ds-1.3b)
-        from transformers import AutoTokenizer, SiglipImageProcessor
+        from transformers import SiglipImageProcessor
         
         image_processor = SiglipImageProcessor.from_pretrained("google/siglip-so400m-patch14-384")
         # DeTikZify uses 420x420 images
         image_processor.size = {"height": 420, "width": 420}
         
-        # Use LlamaTokenizerFast directly to avoid AutoTokenizer mapping issues with custom config
-        tokenizer = LlamaTokenizerFast.from_pretrained(model_name_or_path)
+        # Try AutoTokenizer first, if it fails fallback to LlamaTokenizer (slow)
+        # This handles cases where fast tokenizer conversion fails (Tiktoken/SentencePiece issues)
+        try:
+            tokenizer = AutoTokenizer.from_pretrained(model_name_or_path, use_fast=True)
+        except ValueError:
+             from transformers import LlamaTokenizer
+             tokenizer = LlamaTokenizer.from_pretrained(model_name_or_path)
+
         processor = DetikzifyProcessor(image_processor=image_processor, tokenizer=tokenizer)
+    
+    # Force float16 for memory efficiency on inference
     model = AutoModelForVision2Seq.from_pretrained(model_name_or_path, **kwargs)
 
     if modality_projector is not None:
