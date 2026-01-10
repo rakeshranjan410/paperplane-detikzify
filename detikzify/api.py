@@ -74,37 +74,62 @@ app.add_middleware(
 
 class GenerateResponse(BaseModel):
     tikz: str
+    backend: str = "detikzify"
 
 @app.post("/generate", response_model=GenerateResponse)
-async def generate_tikz(file: UploadFile = File(...)):
-    if not pipeline:
-        raise HTTPException(status_code=503, detail="Model not loaded")
+async def generate_tikz(
+    file: UploadFile = File(...),
+    backend: str = "detikzify"  # Options: "detikzify" or "gpt4"
+):
+    """
+    Generate TikZ code from an image.
     
+    Args:
+        file: Image file to convert
+        backend: Which backend to use
+            - "detikzify": Open-source DeTikZify model (default, free, lower quality for complex images)
+            - "gpt4": GPT-4 Vision (requires OPENAI_API_KEY, higher quality, ~$0.01-0.03 per image)
+    """
     try:
         contents = await file.read()
-        logger.info(f"Received image: {len(contents)} bytes")
+        logger.info(f"Received image: {len(contents)} bytes, backend={backend}")
         image = Image.open(io.BytesIO(contents)).convert("RGB")
-        logger.info(f"Image processed. Size: {image.size}. Starting inference...")
+        logger.info(f"Image processed. Size: {image.size}")
         
-        # Run inference using time-based MCTS (per whitepaper recommendation)
-        # Let MCTS explore as much as possible within the time budget.
-        # More time = more simulations = better quality.
+        if backend == "gpt4":
+            # Use GPT-4 Vision for higher quality
+            from .infer.gpt4_vision import generate_tikz_with_gpt4
+            
+            logger.info("Using GPT-4 Vision backend...")
+            tikz_code = await generate_tikz_with_gpt4(image)
+            
+            if tikz_code:
+                logger.info("GPT-4 Vision generation completed successfully.")
+                return GenerateResponse(tikz=tikz_code, backend="gpt4")
+            else:
+                raise Exception("GPT-4 failed to generate TikZ code.")
         
-        logger.info("Starting MCTS simulation (timeout=180s)...")
-        best_code = None
-        best_score = float("-inf")
-        
-        for score, tikz_doc in pipeline.simulate(image=image, expansions=None, timeout=180):
-            logger.info(f"Generated candidate with score: {score}")
-            if score > best_score:
-                best_score = score
-                best_code = tikz_doc.code
-                
-        if best_code:
-            logger.info("Inference completed successfully. Returning best response.")
-            return GenerateResponse(tikz=best_code)
         else:
-             raise Exception("Failed to generate any valid TikZ code.")
+            # Use DeTikZify (default)
+            if not pipeline:
+                raise HTTPException(status_code=503, detail="DeTikZify model not loaded")
+            
+            logger.info("Using DeTikZify backend (MCTS, timeout=180s)...")
+            best_code = None
+            best_score = float("-inf")
+            
+            for score, tikz_doc in pipeline.simulate(image=image, expansions=None, timeout=180):
+                logger.info(f"Generated candidate with score: {score}")
+                if score > best_score:
+                    best_score = score
+                    best_code = tikz_doc.code
+                    
+            if best_code:
+                logger.info("DeTikZify completed successfully.")
+                return GenerateResponse(tikz=best_code, backend="detikzify")
+            else:
+                raise Exception("DeTikZify failed to generate valid TikZ code.")
+                
     except Exception as e:
         logger.error(f"Inference error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -112,3 +137,4 @@ async def generate_tikz(file: UploadFile = File(...)):
 @app.get("/health")
 def health():
     return {"status": "ok", "model_loaded": pipeline is not None}
+
