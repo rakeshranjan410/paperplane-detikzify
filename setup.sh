@@ -13,25 +13,32 @@ echo "Installing system dependencies..."
 if command_exists apt-get; then
     # Ubuntu/Debian
     sudo apt-get update
-    sudo apt-get install -y python3-pip python3-venv git poppler-utils build-essential
+    sudo apt-get install -y python3.11 python3.11-venv python3.11-dev git poppler-utils build-essential
 elif command_exists yum; then
     # Amazon Linux / CentOS / RHEL
     sudo yum update -y
-    sudo yum install -y python3-pip git poppler-utils gcc python3-devel gcc-c++
-    # Note: On some minimal AMIs python3-devel might be named differently, trying best effort
+    # Amazon Linux 2023 supports python3.11 natively
+    sudo yum install -y python3.11 python3.11-devel git poppler-utils gcc gcc-c++
 elif command_exists dnf; then
     # Fedora / Newer RHEL
-    sudo dnf install -y python3-pip git poppler-utils gcc python3-devel gcc-c++
+    sudo dnf install -y python3.11 python3.11-devel git poppler-utils gcc gcc-c++
 else
-    echo "Warning: package manager not found. Please ensure 'git', 'pip', and 'poppler-utils' are installed."
+    echo "Warning: package manager not found. Please ensure 'python3.11', 'git', and 'poppler-utils' are installed."
 fi
 
 # 2. Create Virtual Environment
-if [ ! -d "venv" ]; then
-    echo "Creating virtual environment..."
-    python3 -m venv venv
+# Remove old venv if it exists to avoid version conflicts
+if [ -d "venv" ]; then
+    echo "removing existing venv to ensure fresh install..."
+    rm -rf venv
+fi
+
+echo "Creating virtual environment with Python 3.11..."
+if command_exists python3.11; then
+    python3.11 -m venv venv
 else
-    echo "Virtual environment already exists."
+    echo "Error: 'python3.11' not found. Please install Python 3.11 manually."
+    exit 1
 fi
 
 # 3. Install Python Dependencies

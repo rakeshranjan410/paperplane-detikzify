@@ -22,11 +22,11 @@ sudo usermod -aG docker ubuntu
 # NOTE: In a real scenario, you might need to handle authentication (SSH keys or PAT) if the repo is private.
 # For public repos or if keys are added via other means:
 cd /home/ubuntu
-if [ ! -d "DeTikZify" ]; then
-    git clone https://github.com/potamides/DeTikZify.git
-    cd DeTikZify
+if [ ! -d "paperplane-detikzify" ]; then
+    git clone https://github.com/rakeshranjan410/paperplane-detikzify.git
+    cd paperplane-detikzify
 else
-    cd DeTikZify
+    cd paperplane-detikzify
     git pull
 fi
 
