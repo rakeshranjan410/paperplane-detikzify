@@ -49,7 +49,8 @@ async def lifespan(app: FastAPI):
             model=model, 
             processor=processor,
             temperature=0.8,
-            top_p=0.95
+            top_p=0.95,
+            fast_metric=False,  # Use SelfSim for perceptual similarity (better quality)
         )
     except Exception as e:
         logger.error(f"Failed to load model: {e}")

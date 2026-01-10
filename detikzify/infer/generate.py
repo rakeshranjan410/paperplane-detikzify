@@ -313,10 +313,15 @@ class DetikzifyPipeline:
         self.processor = processor
         
         metric = None
-        if not fast_metric and ImageSim:
-             # We would init ImageSim here but we don't have it imported fully with args
-             # For now, force fast_metric if ImageSim missing
-             pass
+        if not fast_metric:
+            # Try to import and initialize SelfSim
+            try:
+                from ..evaluate.imagesim import SelfSim
+                metric = SelfSim(model=model, processor=processor)
+            except ImportError:
+                import logging
+                logging.warning("SelfSim not available, falling back to fast_metric")
+                metric = None
              
         self.gen_kwargs: Dict[str, Any] = dict(
             temperature=temperature,
