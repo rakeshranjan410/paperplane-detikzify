@@ -85,20 +85,22 @@ async def generate_tikz(file: UploadFile = File(...)):
         image = Image.open(io.BytesIO(contents)).convert("RGB")
         logger.info(f"Image processed. Size: {image.size}. Starting inference...")
         
-        # Run inference
-        # Run inference using simple sampling (much faster than MCTS)
-        # Using MCTS on a single GPU can still be slow due to multiple expansions.
-        # For a lean service, we prioritize speed.
+        # Run inference using MCTS with 3 expansions for quality
+        # Balance between speed and quality
         
-        logger.info("Starting inference (Sampling)...")
+        logger.info("Starting MCTS simulation (3 expansions)...")
+        best_code = None
+        best_score = float("-inf")
         
-        # Generate with sampling
-        # We can enable beam search in gen_kwargs if needed, but sample is standard.
-        tikz_doc = pipeline.sample(image=image)
-        
-        if tikz_doc and tikz_doc.code:
-             logger.info("Inference completed successfully.")
-             return GenerateResponse(tikz=tikz_doc.code)
+        for score, tikz_doc in pipeline.simulate(image=image, expansions=3, timeout=180):
+            logger.info(f"Generated candidate with score: {score}")
+            if score > best_score:
+                best_score = score
+                best_code = tikz_doc.code
+                
+        if best_code:
+            logger.info("Inference completed successfully. Returning best response.")
+            return GenerateResponse(tikz=best_code)
         else:
              raise Exception("Failed to generate any valid TikZ code.")
     except Exception as e:
