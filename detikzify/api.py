@@ -86,29 +86,19 @@ async def generate_tikz(file: UploadFile = File(...)):
         logger.info(f"Image processed. Size: {image.size}. Starting inference...")
         
         # Run inference
-        # Run inference using MCTS
-        # We run for a short fixed amount of expansions or timeout to get candidates
-        # fast_metric=True is default so it just checks for compilation.
+        # Run inference using simple sampling (much faster than MCTS)
+        # Using MCTS on a single GPU can still be slow due to multiple expansions.
+        # For a lean service, we prioritize speed.
         
-        # Run inference using MCTS
-        # We run for a short fixed amount of expansions or timeout to get candidates
-        # fast_metric=True is default so it just checks for compilation.
+        logger.info("Starting inference (Sampling)...")
         
-        logger.info("Starting MCTS simulation...")
-        best_code = None
-        best_score = float("-inf")
+        # Generate with sampling
+        # We can enable beam search in gen_kwargs if needed, but sample is standard.
+        tikz_doc = pipeline.sample(image=image)
         
-        # Run MCTS for up to 5 expansions or until timeout (e.g. 60 seconds)
-        # In a real deployed scenario, this could be configurable via request.
-        for score, tikz_doc in pipeline.simulate(image=image, expansions=5, timeout=60):
-            logger.info(f"Generated candidate with score: {score}")
-            if score > best_score:
-                best_score = score
-                best_code = tikz_doc.code
-                
-        if best_code:
-            logger.info("Inference completed successfully. Returning best response.")
-            return GenerateResponse(tikz=best_code)
+        if tikz_doc and tikz_doc.code:
+             logger.info("Inference completed successfully.")
+             return GenerateResponse(tikz=tikz_doc.code)
         else:
              raise Exception("Failed to generate any valid TikZ code.")
     except Exception as e:
