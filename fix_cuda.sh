@@ -7,23 +7,35 @@ echo "Fixing PyTorch CUDA installation..."
 if ! command -v nvidia-smi &> /dev/null; then
     echo "nvidia-smi not found! NVIDIA Drivers are likely missing."
     if [ -f /etc/amazon-linux-release ]; then
-        echo "Detected Amazon Linux. Attempting to install drivers from official repos..."
+        echo "Detected Amazon Linux. Attempting robust installation via runfile..."
         
-        # 1. Update and install kernel headers
-        sudo dnf upgrade -y
+        # 1. Install build dependencies
+        sudo dnf groupinstall -y "Development Tools"
         sudo dnf install -y kernel-devel-$(uname -r) kernel-modules-extra-$(uname -r)
         
-        # 2. Add NVIDIA CUDA repo
-        sudo dnf config-manager --add-repo https://developer.download.nvidia.com/compute/cuda/repos/amzn2023/x86_64/cuda-amzn2023.repo
+        # 2. Download Official NVIDIA Driver (Tesla / Data Center)
+        # Version 535.183.01 is stable for A10G (G5 instances)
+        DRIVER_VERSION="535.183.01"
+        DRIVER_FILE="NVIDIA-Linux-x86_64-${DRIVER_VERSION}.run"
+        if [ ! -f "$DRIVER_FILE" ]; then
+            echo "Downloading NVIDIA Driver $DRIVER_VERSION..."
+            curl -O "https://us.download.nvidia.com/tesla/${DRIVER_VERSION}/${DRIVER_FILE}"
+        fi
         
-        # 3. Install drivers
-        sudo dnf clean all
-        sudo dnf install -y nvidia-driver nvidia-settings
+        # 3. Disable nouveau (just in case)
+        echo "Disabling nouveau..."
+        sudo bash -c "echo 'blacklist nouveau' > /etc/modprobe.d/blacklist-nouveau.conf"
+        sudo bash -c "echo 'options nouveau modeset=0' >> /etc/modprobe.d/blacklist-nouveau.conf"
+        
+        # 4. Install
+        chmod +x "$DRIVER_FILE"
+        echo "Running Installer (this takes a few minutes)..."
+        # -s: silent, -m: install kernel module, --dkms: register with DKMS
+        sudo ./$DRIVER_FILE -s --dkms --no-opengl-files
         
         echo "--------------------------------------------------------"
-        echo "DRIVERS INSTALLED. SYSTEM REBOOT REQUIRED."
+        echo "INSTALLATION COMPLETE."
         echo "Please run: sudo reboot"
-        echo "Then wait 60 seconds and reconnect."
         echo "--------------------------------------------------------"
     else
         echo "Please install NVIDIA drivers for your OS."
