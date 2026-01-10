@@ -7,9 +7,9 @@ name = "detikzify"
 readme = "README.md"
 license = {text = "Apache-2.0 License"}
 dependencies = [
-  "torch~=2.7.1",
-  "torchvision~=0.22.1",
-  "transformers[accelerate,tokenizers]~=4.52.4",
+  "torch>=2.0.0",
+  "torchvision>=0.15.0",
+  "transformers[accelerate,tokenizers]>=4.38.0",
   "Pillow~=10.4.0",
   "requests~=2.32.3",
   "numpy~=2.1.1",
