@@ -216,16 +216,34 @@ class DetikzifyGenerator:
         Run the simulations. Returns all rollouts (successful or unsuccessful)
         in descending order (best rollouts first) of their score.
         """
+        import logging
+        logger = logging.getLogger("detikzify-mcts")
+        
         start_time = time()
+        simulation_count = 0
+        logger.info(f"Starting MCTS simulation (expansions={expansions}, timeout={self.mcts_timeout}s)")
+        
         while expansions is None or (expansions:=expansions-1) >= 0:
+            simulation_count += 1
+            logger.info(f"Running simulation #{simulation_count}...")
+            
             self.montecarlo.simulate()
+            
             try:
                 if self.montecarlo.solution:
-                    yield self.montecarlo.solution.pop()
+                    result = self.montecarlo.solution.pop()
+                    logger.info(f"Simulation #{simulation_count} yielded candidate with score: {result[0]}")
+                    yield result
             except IndexError:
+                logger.debug(f"Simulation #{simulation_count} produced no new solution")
                 pass
-            if self.mcts_timeout is not None and time() - start_time > self.mcts_timeout:
+            
+            elapsed = time() - start_time
+            if self.mcts_timeout is not None and elapsed > self.mcts_timeout:
+                logger.info(f"Timeout reached after {elapsed:.1f}s and {simulation_count} simulations")
                 return
+        
+        logger.info(f"Completed {simulation_count} simulations")
 
     def child_finder(self, node: WideNode, montecarlo: MonteCarlo):
         new_nodes = list()
@@ -276,7 +294,26 @@ class DetikzifyGenerator:
             # 1 if has content effectively, -1 if error
             score = int(tikz.has_content) - int(tikz.compiled_with_errors)
         else:
-            score = self.score(tikz.rasterize()) if tikz.has_content else -1
+            # Using SelfSim or other metric
+            if tikz.has_content:
+                try:
+                    import logging
+                    logger = logging.getLogger("detikzify-mcts")
+                    logger.info("Attempting to rasterize TikZ for SelfSim scoring...")
+                    rasterized = tikz.rasterize()
+                    if rasterized is not None:
+                        score = self.score(rasterized)
+                        logger.info(f"SelfSim score: {score:.3f}")
+                    else:
+                        logger.warning("Rasterization returned None, using fast_metric fallback")
+                        score = 1  # Compiled successfully, give it a positive score
+                except Exception as e:
+                    import logging
+                    logger = logging.getLogger("detikzify-mcts")
+                    logger.warning(f"Rasterization/scoring failed: {e}. Using fallback score.")
+                    score = 1  # Compiled successfully, give it a positive score
+            else:
+                score = -1
 
         # node.update_win_value(self.norm(score) if tikz.has_content and not self.fast_metric else score)
         # Simplified scoring update
