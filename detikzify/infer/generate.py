@@ -117,10 +117,14 @@ class DetikzifyGenerator:
         # But here we might be extending an existing sequence
         
         import logging
+        from time import time as get_time
         logger = logging.getLogger("detikzify-generate")
         
         try:
             with torch.inference_mode():
+                start_gen = get_time()
+                logger.info(f"Starting model.generate() with {len(input_ids)} input tokens...")
+                
                 # We need to handle image inputs again if we are starting fresh, 
                 # but valid MCTS rollouts continue from input_ids.
                 # However, Detikzify/Llama-Vision needs pixel_values passed if they are not cached.
@@ -142,6 +146,9 @@ class DetikzifyGenerator:
                     **self.gen_kwargs,
                     **gen_kwargs
                 ).squeeze()
+                
+                elapsed = get_time() - start_gen
+                logger.info(f"model.generate() completed in {elapsed:.1f}s, output {len(output)} tokens")
                 return output
         except Exception:
             # traceback.print_exc()
