@@ -228,29 +228,35 @@ class DetikzifyGenerator:
         
         start_time = time()
         simulation_count = 0
-        logger.info(f"Starting MCTS simulation (expansions={expansions}, timeout={self.mcts_timeout}s)")
+        max_simulations = expansions if expansions is not None else 10  # Hard limit!
         
-        while expansions is None or (expansions:=expansions-1) >= 0:
+        logger.info(f"Starting MCTS (max_simulations={max_simulations}, timeout={self.mcts_timeout}s)")
+        
+        while simulation_count < max_simulations:
             simulation_count += 1
-            logger.info(f"Running simulation #{simulation_count}...")
+            logger.info(f"Simulation #{simulation_count}/{max_simulations}...")
             
-            self.montecarlo.simulate()
+            # Run one MCTS simulation (this should call child_finder -> rollout -> generate)
+            self.montecarlo.simulate(expansion_count=1)
             
+            # Check if we have new solutions
             try:
-                if self.montecarlo.solution:
+                if self.montecarlo.solution and len(self.montecarlo.solution) > 0:
                     result = self.montecarlo.solution.pop()
                     logger.info(f"Simulation #{simulation_count} yielded candidate with score: {result[0]}")
                     yield result
+                else:
+                    logger.debug(f"Simulation #{simulation_count} produced no solution")
             except IndexError:
-                logger.debug(f"Simulation #{simulation_count} produced no new solution")
                 pass
             
+            # Check timeout
             elapsed = time() - start_time
             if self.mcts_timeout is not None and elapsed > self.mcts_timeout:
                 logger.info(f"Timeout reached after {elapsed:.1f}s and {simulation_count} simulations")
                 return
         
-        logger.info(f"Completed {simulation_count} simulations")
+        logger.info(f"Completed {simulation_count} simulations in {time()-start_time:.1f}s")
 
     def child_finder(self, node: WideNode, montecarlo: MonteCarlo):
         new_nodes = list()
