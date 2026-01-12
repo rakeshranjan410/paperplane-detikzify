@@ -188,6 +188,85 @@ start_server() {
 }
 
 # =============================================================================
+# Check and install GPU drivers if on EC2 GPU instance
+# =============================================================================
+setup_gpu() {
+    # Check if we're on a GPU instance but nvidia-smi doesn't work
+    if [ -f /etc/amazon-linux-release ]; then
+        # Check if this is a GPU instance (g4, g5, p3, p4, etc.)
+        INSTANCE_TYPE=$(curl -s --connect-timeout 2 http://169.254.169.254/latest/meta-data/instance-type 2>/dev/null || echo "unknown")
+        
+        if [[ "$INSTANCE_TYPE" == g* ]] || [[ "$INSTANCE_TYPE" == p* ]]; then
+            log_info "Detected GPU instance: $INSTANCE_TYPE"
+            
+            if ! command -v nvidia-smi &> /dev/null; then
+                log_warn "NVIDIA drivers not installed! Installing now (this takes 5-10 minutes)..."
+                
+                # Install build tools first
+                sudo dnf groupinstall -y "Development Tools" 2>/dev/null || true
+                sudo dnf install -y kernel-devel-$(uname -r) kernel-modules-extra-$(uname -r) dkms 2>/dev/null || true
+                
+                # Download and install driver
+                DRIVER_VERSION="535.183.01"
+                DRIVER_FILE="NVIDIA-Linux-x86_64-${DRIVER_VERSION}.run"
+                
+                if [ ! -f "$DRIVER_FILE" ]; then
+                    log_info "Downloading NVIDIA Driver $DRIVER_VERSION..."
+                    curl -O "https://us.download.nvidia.com/tesla/${DRIVER_VERSION}/${DRIVER_FILE}"
+                fi
+                
+                chmod +x "$DRIVER_FILE"
+                
+                log_info "Installing NVIDIA driver (this may take a few minutes)..."
+                sudo ./$DRIVER_FILE -s --dkms --no-opengl-files 2>/dev/null || {
+                    log_error "GPU driver installation failed. Please reboot and try again."
+                    log_warn "Run: sudo reboot"
+                    exit 1
+                }
+                
+                log_info "NVIDIA driver installed! Verifying..."
+                if command -v nvidia-smi &> /dev/null; then
+                    nvidia-smi --query-gpu=name,memory.total --format=csv
+                else
+                    log_warn "nvidia-smi still not found. Please reboot: sudo reboot"
+                    exit 1
+                fi
+            else
+                log_info "NVIDIA driver already installed."
+            fi
+        fi
+    fi
+}
+
+# =============================================================================
+# Install TeX Live (required for MCTS)
+# =============================================================================
+setup_texlive() {
+    if ! command -v pdflatex &> /dev/null; then
+        log_info "Installing TeX Live (required for MCTS, this takes 5-10 minutes)..."
+        
+        if command -v dnf &> /dev/null; then
+            sudo dnf install -y texlive texlive-scheme-medium texlive-collection-latex texlive-collection-latexrecommended 2>/dev/null || {
+                log_warn "TeX Live installation from dnf failed, trying alternative..."
+                sudo dnf install -y texlive 2>/dev/null || log_error "TeX Live installation failed"
+            }
+        elif command -v apt-get &> /dev/null; then
+            sudo apt-get update
+            sudo apt-get install -y texlive texlive-latex-extra 2>/dev/null || log_error "TeX Live installation failed"
+        fi
+        
+        # Verify
+        if command -v pdflatex &> /dev/null; then
+            log_info "TeX Live installed successfully!"
+        else
+            log_warn "TeX Live installation may have failed. MCTS scoring may not work."
+        fi
+    else
+        log_info "TeX Live already installed."
+    fi
+}
+
+# =============================================================================
 # Main
 # =============================================================================
 main() {
@@ -197,11 +276,13 @@ main() {
     case "${1:-}" in
         --setup)
             log_info "Forcing full setup..."
+            setup_gpu
             install_system_deps
+            setup_texlive
             setup_python_env
             ;;
         --gpu-fix)
-            fix_gpu
+            setup_gpu
             exit 0
             ;;
         --clean)
@@ -216,7 +297,9 @@ main() {
     # Auto-detect if setup needed
     if needs_setup; then
         log_info "First-time setup detected..."
+        setup_gpu          # Auto-install GPU drivers if needed
         install_system_deps
+        setup_texlive      # Auto-install TeX Live if needed
         setup_python_env
     fi
     
@@ -231,3 +314,4 @@ main() {
 }
 
 main "$@"
+
