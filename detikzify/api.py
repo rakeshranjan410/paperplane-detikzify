@@ -10,8 +10,17 @@ from .model import load
 from .infer.generate import DetikzifyPipeline
 
 
-# Setup logging
-logging.basicConfig(level=logging.INFO)
+import sys
+
+# Setup logging with forced flush for EC2 visibility
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    stream=sys.stdout,
+    force=True  # Override any existing logging config
+)
+# Force stdout to be unbuffered
+sys.stdout.reconfigure(line_buffering=True)
 logger = logging.getLogger("detikzify-api")
 
 # Global variables
@@ -90,6 +99,12 @@ async def generate_tikz(
             - "detikzify": Open-source DeTikZify model (default, free, lower quality for complex images)
             - "gpt4": GPT-4 Vision (requires OPENAI_API_KEY, higher quality, ~$0.01-0.03 per image)
     """
+    # IMMEDIATE diagnostic - this MUST print if request reaches endpoint
+    print("=" * 50, flush=True)
+    print(">>> ENDPOINT HIT: /generate", flush=True)
+    print(f">>> Backend: {backend}", flush=True)
+    print(f">>> File: {file.filename}", flush=True)
+    print("=" * 50, flush=True)
     try:
         contents = await file.read()
         logger.info(f"Received image: {len(contents)} bytes, backend={backend}")

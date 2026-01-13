@@ -6,6 +6,9 @@ if [[ "$OSTYPE" == "darwin"* ]]; then
     export PYTORCH_MPS_HIGH_WATERMARK_RATIO=0.0
 fi
 
+# Force Python to use unbuffered stdout/stderr (critical for EC2 log visibility)
+export PYTHONUNBUFFERED=1
+
 echo "Starting DeTikZify Microservice..."
 
 # Check if we are inside a virtual environment or if venv exists
@@ -24,5 +27,5 @@ if ! command -v uvicorn &> /dev/null; then
 fi
 
 # Bind to 0.0.0.0 to be accessible if deployed
-uvicorn detikzify.api:app --host 0.0.0.0 --port 8000
+uvicorn detikzify.api:app --host 0.0.0.0 --port 8000 --log-level info
 
