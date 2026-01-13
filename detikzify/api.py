@@ -126,43 +126,20 @@ async def generate_tikz(
                 raise Exception("GPT-4 failed to generate TikZ code.")
         
         elif backend == "hybrid":
-            # HYBRID: GPT-4 analyzes → DeTikZify generates with context
-            from .infer.gpt4_preprocess import analyze_image_with_gpt4, format_context_prompt
+            # HYBRID: Use GPT-4 Vision for generation (best quality for complex diagrams)
+            # Note: DeTikZify doesn't support text-guided generation, so hybrid = gpt4 for now
+            from .infer.gpt4_vision import generate_tikz_with_gpt4
             
-            if not pipeline:
-                raise HTTPException(status_code=503, detail="DeTikZify model not loaded")
+            logger.info("Using HYBRID backend (GPT-4 Vision for complex diagrams)...")
+            print(">>> HYBRID: Using GPT-4 Vision for best quality...", flush=True)
             
-            logger.info("Using HYBRID backend: GPT-4 analysis + DeTikZify generation...")
+            tikz_code = await generate_tikz_with_gpt4(image)
             
-            # Step 1: Get structural description from GPT-4
-            print(">>> Step 1: GPT-4 Vision analyzing image structure...", flush=True)
-            description = await analyze_image_with_gpt4(image)
-            context_prompt = format_context_prompt(description)
-            
-            print(f">>> Step 2: DeTikZify generating TikZ with context...", flush=True)
-            logger.info(f"GPT-4 description: {description[:200]}...")
-            
-            # Step 2: Use DeTikZify with the context prompt
-            best_code = None
-            best_score = float("-inf")
-            
-            # Pass the context as 'text' parameter - this guides the model
-            for score, tikz_doc in pipeline.simulate(
-                image=image, 
-                text=context_prompt,  # <-- Key difference: contextual guidance
-                expansions=None, 
-                timeout=180
-            ):
-                logger.info(f"Generated candidate with score: {score}")
-                if score > best_score:
-                    best_score = score
-                    best_code = tikz_doc.code
-                    
-            if best_code:
+            if tikz_code:
                 logger.info("HYBRID backend completed successfully.")
-                return GenerateResponse(tikz=best_code, backend="hybrid")
+                return GenerateResponse(tikz=tikz_code, backend="hybrid")
             else:
-                raise Exception("HYBRID backend failed to generate valid TikZ code.")
+                raise Exception("HYBRID backend failed to generate TikZ code.")
         
         else:
             # Use DeTikZify (default)
